@@ -31,9 +31,14 @@ export const rendererConfig = (env: unknown, argv: { mode?: string }): Configura
     module: {
       rules: newRules, // Use the new rules array
     },
+    output: {
+      publicPath: './',
+    },
     plugins: [
       ...existingPlugins,
-      new MiniCssExtractPlugin(),
+      new MiniCssExtractPlugin({
+        filename: 'renderer.css',
+      }),
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, 'src', 'renderer', 'index.html'),
         filename: 'index.html'
