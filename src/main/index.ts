@@ -1,3 +1,4 @@
+console.log('[Main Process] Script start');
 import { app, BrowserWindow, ipcMain, net, Tray, Menu } from 'electron';
 import path from 'path';
 import './database'; // Initialize database connection
@@ -7,6 +8,7 @@ import { TweetData, SourceData, TickerConfig, NewSourcePayload } from '../shared
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
+  console.log('[Main Process] Electron Squirrel startup detected, quitting.');
   app.quit();
 }
 
@@ -207,12 +209,17 @@ const getInitialTweetsBySource = (): Promise<Record<string, TweetData[]>> => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 (app as any).quitting = false; // Initialize our custom flag
+console.log('[Main Process] App quitting flag set to false');
 
 app.on('ready', () => {
+  console.log('[Main Process] App ready event fired.');
   createWindow();
+  console.log('[Main Process] createWindow called.');
   createTray(); // Create tray icon after window is ready
+  console.log('[Main Process] createTray called.');
 
   ipcMain.handle('get-initial-load-data', async () => {
+    console.log("[Main Process] 'get-initial-load-data' IPC handler invoked.");
     try {
       const sources = await getAllSources();
       const tweetsBySource = await getInitialTweetsBySource();
@@ -225,16 +232,20 @@ app.on('ready', () => {
       });
       return { sources, tweetsBySource, tickerConfigs, isOnline: net.isOnline() };
     } catch (error) {
-      console.error("Failed to get initial load data:", error);
+      console.error("[Main Process] Failed to get initial load data:", error);
       return { sources: [], tweetsBySource: {}, tickerConfigs: [], isOnline: net.isOnline() };
     }
   });
+  console.log("[Main Process] 'get-initial-load-data' IPC handler registered.");
 
   ipcMain.handle('check-network-status', async () => {
+    console.log("[Main Process] 'check-network-status' IPC handler invoked.");
     return { isOnline: net.isOnline() };
   });
+  console.log("[Main Process] 'check-network-status' IPC handler registered.");
 
   ipcMain.handle('remove-source', async (_event, sourceId: string) => {
+    console.log(`[Main Process] 'remove-source' IPC handler invoked for ID: ${sourceId}`);
     try {
       await dbRemoveSource(sourceId);
       const updatedSources = await getAllSources(); // Fetch updated list
@@ -246,8 +257,10 @@ app.on('ready', () => {
       return { success: false, error: (error as Error).message, sources: currentSources };
     }
   });
+  console.log("[Main Process] 'remove-source' IPC handler registered.");
 
   ipcMain.handle('add-source', async (_event, payload: NewSourcePayload) => {
+    console.log("[Main Process] 'add-source' IPC handler invoked.");
     try {
       // Map NewSourcePayload to DbNewSourceData (they are compatible in this case)
       // but if they diverged, this is where you'd map/validate.
@@ -268,12 +281,26 @@ app.on('ready', () => {
       return { success: false, error: (error as Error).message, sources: currentSources };
     }
   });
+  console.log("[Main Process] 'add-source' IPC handler registered.");
+
+  // Start background services only after window and IPC handlers are ready.
+  // Moved from createWindow's did-finish-load to ensure IPC is up.
+  if (mainWindow) {
+    startBackgroundServices(mainWindow);
+    console.log('[Main Process] startBackgroundServices called.');
+    // Send initial network status
+    mainWindow.webContents.send('network-status', { isOnline: net.isOnline() });
+    console.log('[Main Process] Initial network status sent.');
+  } else {
+    console.warn('[Main Process] mainWindow not available after app ready to start background services.');
+  }
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  console.log('[Main Process] Window-all-closed event fired.');
   // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
   // If not on macOS and tray exists, don't quit. User can quit via tray.
