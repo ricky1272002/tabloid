@@ -1,7 +1,8 @@
 module.exports = {
   content: [
-    "./src/renderer/**/*.{js,jsx,ts,tsx,html}",
-    "./src/renderer/index.html" // Corrected path
+    "./src/renderer/**/*.html",
+    "./src/renderer/**/*.tsx",
+    "./src/renderer/**/*.ts",
   ],
   theme: {
     extend: {},
