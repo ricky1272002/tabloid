@@ -20,6 +20,10 @@ export interface ElectronAPI {
   onSourceFetchError: (callback: (data: { sourceId: string; error: string }) => void) => (() => void);
   onPriceUpdate: (callback: (data: PriceData) => void) => (() => void);
   onNetworkStatusChange: (callback: (data: { isOnline: boolean }) => void) => (() => void);
+  // Renderer to Main (Send - for window controls)
+  windowMinimize: () => void;
+  windowMaximize: () => void;
+  windowClose: () => void;
   // Renderer to Main (Send - if needed, e.g., for user actions)
   // exampleAction: (data: any) => void;
 }
@@ -32,6 +36,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeSource: (sourceId: string) => ipcRenderer.invoke('remove-source', sourceId),
   addSource: (sourceData: NewSourcePayload) => ipcRenderer.invoke('add-source', sourceData),
   checkNetworkStatus: () => ipcRenderer.invoke('check-network-status'),
+
+  // Window control methods
+  windowMinimize: () => ipcRenderer.send('window-minimize'),
+  windowMaximize: () => ipcRenderer.send('window-maximize'),
+  windowClose: () => ipcRenderer.send('window-close'),
+
   onNewTweets: (callback: (data: { sourceId: string; tweets: TweetData[] }) => void) => {
     const handler = (_event: IpcRendererEvent, data: { sourceId: string; tweets: TweetData[] }) => callback(data);
     ipcRenderer.on('new-tweets', handler);

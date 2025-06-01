@@ -1,116 +1,114 @@
-import React, { useEffect } from 'react';
-import Bubble from './components/Bubble';
-import TopBar from './components/TopBar';
-import SettingsModal from './components/SettingsModal';
-import { useAppStore } from './store/tweetStore';
+import React, { useEffect, useState } from 'react';
+import { useAppStore } from './store/tweetStore'; // Assuming this is the correct path
+import CustomTitleBar from './components/CustomTitleBar'; // Import the new component
 
-function App() {
-  const sources = useAppStore(state => state.sources);
-  const tweetsBySourceId = useAppStore(state => state.tweetsBySourceId);
-  const setSources = useAppStore(state => state.setSources);
-  const addTweets = useAppStore(state => state.addTweets);
-  const setSourceError = useAppStore(state => state.setSourceError);
+const App: React.FC = () => {
+  const {
+    sources,
+    tweetsBySourceId,
+    setSources,
+    addTweets, // Or a new action like setTweetsBySourceId if you prefer
+    setTickerConfig,
+    setIsOnline,
+    // Add other relevant state/actions from your store if needed for display
+  } = useAppStore();
 
-  const configuredTickers = useAppStore(state => state.configuredTickers);
-  const priceData = useAppStore(state => state.priceData);
-  const isLoadingPrices = useAppStore(state => state.isLoadingPrices);
-  const setPriceData = useAppStore(state => state.setPriceData);
-  const setTickerConfig = useAppStore(state => state.setTickerConfig);
-
-  const isOnline = useAppStore(state => state.isOnline);
-  const setIsOnline = useAppStore(state => state.setIsOnline);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    window.electronAPI?.getInitialLoadData().then(({ sources: initialSources, tweetsBySource: initialTweetsBySource, tickerConfigs: initialTickerConfigs, isOnline: initialIsOnline }) => {
-      setSources(initialSources);
-      setTickerConfig(initialTickerConfigs);
-      setIsOnline(initialIsOnline);
-      for (const sourceId in initialTweetsBySource) {
-        if (initialTweetsBySource[sourceId].length > 0) {
-          addTweets(sourceId, initialTweetsBySource[sourceId]);
+    const fetchData = async () => {
+      try {
+        console.log("[Renderer] Attempting to fetch initial load data...");
+        const data = await window.electronAPI.getInitialLoadData();
+        console.log("[Renderer] Initial data received:", data);
+
+        if (data) {
+          setSources(data.sources);
+          // Assuming data.tweetsBySource is Record<string, TweetData[]>
+          // If your addTweets is idempotent or handles initial setting, this is fine.
+          // Otherwise, a setTweetsBySourceId action might be cleaner.
+          for (const sourceId in data.tweetsBySource) {
+            addTweets(sourceId, data.tweetsBySource[sourceId]);
+          }
+          setTickerConfig(data.tickerConfigs);
+          setIsOnline(data.isOnline);
+        } else {
+          // This case should ideally not happen if main process always returns an object
+          console.error("[Renderer] Received undefined data from getInitialLoadData");
+          setError("Failed to receive data from main process.");
         }
+      } catch (e: any) {
+        console.error("[Renderer] Error fetching initial data:", e);
+        setError(e.message || "An unknown error occurred while fetching data.");
+      } finally {
+        setIsLoading(false);
       }
-    }).catch(err => {
-        console.error("Error fetching initial load data:", err);
-        setIsOnline(false); // Assume offline if initial load fails critically
-    });
-
-    const removeNewTweetsListener = window.electronAPI?.onNewTweets(({ sourceId, tweets: newTweets }) => {
-      addTweets(sourceId, newTweets);
-    });
-
-    const removeSourceFetchErrorListener = window.electronAPI?.onSourceFetchError(({ sourceId, error }) => {
-      setSourceError(sourceId, error);
-    });
-
-    const removePriceUpdateListener = window.electronAPI?.onPriceUpdate((newPriceData) => {
-      setPriceData(newPriceData);
-    });
-
-    const removeNetworkStatusListener = window.electronAPI?.onNetworkStatusChange(({ isOnline: updatedIsOnline }) => {
-        console.log("Network status changed:", updatedIsOnline);
-        setIsOnline(updatedIsOnline);
-    });
-
-    // Optional: Periodically check network status if onNetworkStatusChange is not reliable enough across all OS/setups
-    // const intervalId = setInterval(async () => {
-    //   try {
-    //     const status = await window.electronAPI?.checkNetworkStatus();
-    //     if (status && status.isOnline !== isOnline) {
-    //       setIsOnline(status.isOnline);
-    //     }
-    //   } catch (e) { console.error("Failed to check network status periodically", e); }
-    // }, 30000); // Check every 30 seconds
-
-    return () => {
-      removeNewTweetsListener?.();
-      removeSourceFetchErrorListener?.();
-      removePriceUpdateListener?.();
-      removeNetworkStatusListener?.();
-      // clearInterval(intervalId);
     };
-  }, [setSources, addTweets, setSourceError, setPriceData, setTickerConfig, setIsOnline]); // isOnline dependency removed from here to avoid loop with interval, manage inside interval if used
 
-  return (
-    <div className="w-screen h-screen bg-[#15202B] text-white flex flex-col">
-      {!isOnline && (
-        <div className="bg-red-600 text-white text-center py-2 text-sm fixed top-0 left-0 right-0 z-[100]">
-          <p>You are currently offline. Some features may be unavailable.</p>
+    fetchData();
+  }, [setSources, addTweets, setTickerConfig, setIsOnline]); // Dependencies for useEffect
+
+  // Common layout class for main content area to account for title bar height (h-8 = 2rem)
+  const mainContentClass = "pt-8 w-screen h-screen"; 
+
+  if (isLoading) {
+    return (
+      <>
+        <CustomTitleBar />
+        <div className={`${mainContentClass} bg-gray-900 flex items-center justify-center text-white`}>
+          Loading initial data...
         </div>
-      )}
-      <TopBar 
-        configuredTickers={configuredTickers}
-        priceData={priceData}
-        isLoadingPrices={isLoadingPrices}
-        // Add a top margin if offline banner is shown to prevent overlap
-        className={!isOnline ? 'mt-8' : ''} 
-      />
+      </>
+    );
+  }
 
-      {/* Adjust main content padding if offline banner is shown */}
-      <div className={`flex-grow p-4 overflow-y-auto ${!isOnline ? 'pt-10' : ''}`}>
-        {(sources.length === 0 && configuredTickers.length === 0 && isOnline) ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-xl text-[#8899a6]">Loading initial data...</p>
-          </div>
-        ) : sources.length === 0 && isOnline ? (
-          <div className="flex items-center justify-center h-full">
-            <p className="text-xl text-[#8899a6]">Loading sources or no sources configured...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 grid-rows-2 gap-4 h-full">
-            {sources.map((source) => (
-              <Bubble 
-                key={source.id} 
-                source={source} 
-                tweets={tweetsBySourceId[source.id] || []} 
-              />
-            ))}
-          </div>
-        )}
+  if (error) {
+    return (
+      <>
+        <CustomTitleBar />
+        <div className={`${mainContentClass} bg-gray-900 flex flex-col items-center justify-center text-red-500`}>
+          <p>Error loading application:</p>
+          <p>{error}</p>
+          <p>Please check console logs (Ctrl+Shift+I in Dev, or log files in packaged app) for more details.</p>
+        </div>
+      </>
+    );
+  }
+
+  // Basic data display (replace with your actual UI components later)
+  return (
+    <>
+      <CustomTitleBar />
+      <div className={`${mainContentClass} bg-gray-800 text-white p-4 overflow-auto`}>
+        <h1 className="text-2xl font-bold mb-4">Tabloid - Data Loaded</h1>
+        <div className="mb-2">
+          Network Status: {useAppStore.getState().isOnline ? 'Online' : 'Offline'}
+        </div>
+        
+        <h2 className="text-xl font-semibold mb-2">Sources ({sources.length})</h2>
+        {sources.length === 0 && <p>No sources configured.</p>}
+        <ul>
+          {sources.map(source => (
+            <li key={source.id} className="mb-3 p-2 border border-gray-700 rounded">
+              <h3 className="text-lg font-medium">{source.name} (@{source.handle}) - ID: {source.id}</h3>
+              <p>Tweets loaded: {tweetsBySourceId[source.id]?.length || 0}</p>
+              {/* Further display tweets for this source if desired */}
+              {/* {tweetsBySourceId[source.id]?.map(tweet => (
+                <div key={tweet.id} className="ml-4 p-1 border-t border-gray-600">
+                  <p className="text-sm text-gray-400">{new Date(tweet.createdAt).toLocaleString()}</p>
+                  <p>{tweet.content}</p>
+                </div>
+              ))} */}
+            </li>
+          ))}
+        </ul>
+        {/* Placeholder for Ticker display */}
+        {/* <h2 className="text-xl font-semibold mt-4 mb-2">Tickers</h2> */}
+        {/* Display tickerConfigs or priceData here */}
       </div>
-      <SettingsModal />
-    </div>
+    </>
   );
-}
+};
 
 export default App; 

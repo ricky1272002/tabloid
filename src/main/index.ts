@@ -68,12 +68,14 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    frame: false, // Make the window frameless
+    titleBarStyle: 'hidden', // Recommended for frameless on macOS for traffic lights
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), // We'll need to create/update this
       contextIsolation: true,
       nodeIntegration: false,
       // Enable devTools in dev environment
-      devTools: process.env.NODE_ENV !== 'production',
+      devTools: true, // Ensuring DevTools are always enabled for now
     },
   });
 
@@ -90,7 +92,7 @@ const createWindow = () => {
   }
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools(); // We can also force it open here if needed
 
   mainWindow.on('close', (event) => {
     if ((app as any).quitting) { // `app.quitting` will be true if app.quit() was called
@@ -111,6 +113,26 @@ const createWindow = () => {
       mainWindow.webContents.send('network-status', { isOnline: net.isOnline() });
     }
   });
+
+  // IPC handlers for custom title bar controls
+  ipcMain.on('window-minimize', () => {
+    mainWindow?.minimize();
+  });
+
+  ipcMain.on('window-maximize', () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow?.unmaximize();
+    } else {
+      mainWindow?.maximize();
+    }
+  });
+
+  ipcMain.on('window-close', () => {
+    // We need to ensure app.quitting is set correctly to bypass the hide-on-close logic
+    (app as any).quitting = true;
+    mainWindow?.close();
+  });
+  console.log("[Main Process] Custom window control IPC handlers registered.");
 };
 
 // Local function to get tweets grouped by source for initial load
