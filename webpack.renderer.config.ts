@@ -26,14 +26,14 @@ export const rendererConfig = (env: unknown, argv: { mode?: string }): Configura
         { loader: 'css-loader' },
         { loader: 'postcss-loader' }
       ],
-    });
+});
   }
 
   return {
     target: 'electron-renderer', // Explicitly set target
-    module: {
+  module: {
       rules: newRules, // Use the new rules array
-    },
+  },
     plugins: [
       ...existingPlugins,
       new MiniCssExtractPlugin({
@@ -44,9 +44,9 @@ export const rendererConfig = (env: unknown, argv: { mode?: string }): Configura
         filename: 'index.html'
       }),
     ],
-    resolve: {
-      extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
-    },
+  resolve: {
+    extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
+  },
     node: { // Configure Node.js globals behavior
       __dirname: false,
       __filename: false,
