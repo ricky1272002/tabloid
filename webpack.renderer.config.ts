@@ -31,9 +31,6 @@ export const rendererConfig = (env: unknown, argv: { mode?: string }): Configura
     module: {
       rules: newRules, // Use the new rules array
     },
-    output: {
-      publicPath: './',
-    },
     plugins: [
       ...existingPlugins,
       new MiniCssExtractPlugin({
