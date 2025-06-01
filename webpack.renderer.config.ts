@@ -14,7 +14,9 @@ export const rendererConfig = (env: unknown, argv: { mode?: string }): Configura
   const newRules = [...rules]; 
 
   // Check if CSS rule already exists to prevent duplicates if config is cached/reused
-  const cssRuleExists = newRules.some(rule => rule.test && rule.test.toString().includes('\\.css'));
+  const cssRuleExists = newRules.some(
+    (rule) => typeof rule === 'object' && rule && rule.test && rule.test.toString().includes('\\.css')
+  );
 
   if (!cssRuleExists) {
     newRules.push({
@@ -28,6 +30,7 @@ export const rendererConfig = (env: unknown, argv: { mode?: string }): Configura
   }
 
   return {
+    target: 'electron-renderer', // Explicitly set target
     module: {
       rules: newRules, // Use the new rules array
     },
@@ -43,6 +46,10 @@ export const rendererConfig = (env: unknown, argv: { mode?: string }): Configura
     ],
     resolve: {
       extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
+    },
+    node: { // Configure Node.js globals behavior
+      __dirname: false,
+      __filename: false,
     },
     // Optionally, explicitly set the mode based on Webpack's argument
     // mode: argv.mode || 'development',

@@ -1,13 +1,11 @@
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
-    "./src/renderer/**/*.html",
-    "./src/renderer/**/*.tsx",
-    "./src/renderer/**/*.ts",
+    "./src/renderer/**/*.{js,jsx,ts,tsx,html}",
+    "./src/renderer/index.html",
   ],
   theme: {
     extend: {},
   },
-  plugins: [
-    require('tailwind-scrollbar'),
-  ],
+  plugins: [],
 } 

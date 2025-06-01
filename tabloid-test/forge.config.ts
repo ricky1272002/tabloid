@@ -7,7 +7,6 @@ import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-nati
 import { WebpackPlugin } from '@electron-forge/plugin-webpack';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
-import path from 'path';
 
 import { mainConfig } from './webpack.main.config';
 import { rendererConfig } from './webpack.renderer.config';
@@ -15,25 +14,9 @@ import { rendererConfig } from './webpack.renderer.config';
 const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
-    name: "Tabloid",
-    executableName: "Tabloid",
-    icon: path.join(__dirname, 'src/main/assets/icon'),
-    appBundleId: "com.electron.tabloid",
-    appCategoryType: "public.app-category.news",
-    win32metadata: {
-      ProductName: "Tabloid",
-      CompanyName: "YourNameOrCompany",
-      FileDescription: "Cryptocurrency news aggregator",
-    }
   },
   rebuildConfig: {},
-  makers: [
-    new MakerSquirrel({
-    }), 
-    new MakerZIP({}, ['darwin']),
-    new MakerRpm({}),
-    new MakerDeb({})
-  ],
+  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
   plugins: [
     new AutoUnpackNativesPlugin({}),
     new WebpackPlugin({
@@ -42,17 +25,18 @@ const config: ForgeConfig = {
         config: rendererConfig,
         entryPoints: [
           {
-            html: './src/renderer/index.html',
-            js: './src/renderer/index.tsx',
+            html: './src/index.html',
+            js: './src/renderer.ts',
             name: 'main_window',
             preload: {
-              js: './src/main/preload.ts',
+              js: './src/preload.ts',
             },
           },
         ],
       },
-      devContentSecurityPolicy: `default-src 'self' 'unsafe-inline' data:; script-src 'self' 'unsafe-eval' 'unsafe-inline' data:; img-src 'self' data: https://pbs.twimg.com; connect-src 'self' https://api.coingecko.com https://api.twitter.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:;`
     }),
+    // Fuses are used to enable/disable various Electron functionality
+    // at package time, before code signing the application
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
