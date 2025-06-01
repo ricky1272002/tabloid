@@ -17,7 +17,8 @@ const config: ForgeConfig = {
     asar: true,
     name: "Tabloid",
     executableName: "Tabloid",
-    icon: path.join(__dirname, 'src/main/assets/icon'),
+    icon: path.join(__dirname, 'assets/icon'),
+    extraResource: ['./assets'],
     appBundleId: "com.electron.tabloid",
     appCategoryType: "public.app-category.news",
     win32metadata: {

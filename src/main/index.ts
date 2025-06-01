@@ -19,79 +19,24 @@ let tray: Tray | null = null;
 const IS_DEV = process.env.NODE_ENV !== 'production';
 
 const createTray = () => {
-  // It's important that the icon path is correct. 
-  // For development, __dirname is roughly project_root/src/main (if running from .ts files via ts-node or similar)
-  // or project_root/.webpack/main (if running compiled code).
-  // For production, it will be relative to the app's resources directory.
-  // A common practice is to copy assets to the output directory during build.
   let iconPath: string;
   if (IS_DEV) {
-    // Path when running in development (e.g. `npm run dev` or `electron .`)
-    // This might need adjustment based on your dev setup and where assets are kept.
-    // If assets are in `public/` or a root `assets/` folder, adjust path.join accordingly.
-    // Assuming an assets folder inside src/main for this example:
     iconPath = path.join(__dirname, 'assets/icon.png'); 
   } else {
-    // Path when packaged (e.g. after `npm run package`)
-    // Electron copies files from your project to a resources directory.
-    // path.join(process.resourcesPath, 'assets/icon.png') is a common pattern if 'assets' is at the root of your packaged app resources.
-    // If your build process copies assets into a specific structure (e.g., inside .webpack or similar), adjust here.
-    // For Electron Forge, it often puts files from `public` or a configured assets dir into the resources path.
-    // A safer bet for Forge might be to resolve relative to `app.getAppPath()` and then into your build structure if needed.
-    iconPath = path.join(app.getAppPath(), '../app.asar.unpacked/dist/main/assets/icon.png'); // Example for a common packed structure
-    // A simpler approach might be path.join(process.resourcesPath, 'icon.png') if icon is at root of resources
-    // For Forge, if you put icon.png in your project root or a `public` folder that gets copied, check its final location.
-    // Let's try a path that might work with Forge's default behavior for assets in renderer or a specific assets folder copied by webpack.
-    // This might be tricky to get right without knowing the exact build output structure.
-    // Defaulting to a relative path that Electron might find in its resources.
-    // A simpler approach for now, assuming the icon might be bundled near the main entry point or copied to a known location.
-    iconPath = path.join(__dirname, 'assets/icon.png'); // This might point inside an asar file. Better to use process.resourcesPath
-    // A common pattern if your webpack config copies assets to a specific folder like `static` or `assets` within the output
-    // For now, trying one that expects assets to be copied to a specific folder by your build tools.
-    // This is a common place where icons are expected after packaging. If it fails, Electron uses a default icon.
-    iconPath = path.join(process.resourcesPath, 'assets/icon.png'); 
-    // If the above doesn't work, try to be more generic or ensure your build copies it correctly.
-    // A very common pattern for electron-forge with webpack is that static assets are in `.webpack/renderer/static` or similar.
-    // For a main process asset, it's often simpler if placed in a root `assets` folder and copied by Forge config.
-    // Given the current Webpack setup, this is a guess. Let's try a path relative to main.js in packaged app.
-    iconPath = path.join(__dirname, 'assets/icon.png'); // Fallback assuming it's near main.js
-
-    // The most robust way is to copy the asset to a known location in your forge.config.ts or webpack config.
-    // For now, we'll use a path that *might* work if assets/icon.png is copied to the root of the output main process directory.
-    // A safe bet is often `path.join(app.getAppPath(), 'assets/icon.png')` if `assets` is in your project root and copied.
-    // Or from the resources path: `path.join(process.resourcesPath, 'icon.png')` if icon.png is in the root of resources.
-    // Let's try the most common one for packaged apps where icon is in resources/assets
-    iconPath = path.join(process.resourcesPath, 'icon.png'); 
-    // If assets are within a subdirectory in resources, like 'resources/app.asar.unpacked/assets/icon.png'
-    // It really depends on the build packaging. For simplicity, let's assume icon.png is at the root of resources for production for now.
+    iconPath = path.join(process.resourcesPath, 'assets', 'icon.png');
   }
   
-  // For robustness, let's try a common path configuration for Electron Forge
-  // Assuming `icon.png` is in `src/main/assets/` and Webpack is configured to copy it to `dist/main/assets/`
-  // which then gets packed relative to the main process entry point.
-  // A more direct approach if your bundler places it next to the main.js:
-  const devIconPath = path.join(__dirname, 'assets', 'icon.png');
-  // For packaged app, Electron Forge might put it in resources. Try a path relative to app path.
-  const prodIconPath = path.join(app.getAppPath(), 'dist', 'main', 'assets', 'icon.png'); // This assumes webpack output structure
-  // A simpler path if icon is copied to the root of resources by forge:
-  const resourcesIconPath = path.join(process.resourcesPath, 'icon.png');
+  console.log(`Using tray icon path: ${iconPath}`);
 
-  let finalIconPath = devIconPath;
-  if (!IS_DEV) {
-    // Attempt to find the icon in a few common locations for packaged apps
-    if (require('fs').existsSync(resourcesIconPath)) {
-        finalIconPath = resourcesIconPath;
-    } else if (require('fs').existsSync(prodIconPath)) {
-        finalIconPath = prodIconPath;
-    } else {
-        console.warn("Production icon not found at expected paths, Electron may use a default icon.");
-        // Use a path that Electron might resolve if icon is in asar root or similar basic packaging.
-        finalIconPath = 'icon.png'; // Electron will search in default locations
-    }
+  // Check if the icon file exists, otherwise Electron will use a default icon or error
+  if (!require('fs').existsSync(iconPath)) {
+    console.error(`Tray icon not found at: ${iconPath}. Using default icon.`);
+    // Electron might use a default or throw error. Forcing a known simple name might let Electron find a default.
+    // Or, you might want to handle this more gracefully, e.g. not creating a tray if icon is missing.
+    // For now, we proceed, and Electron will likely show a default icon or the error you saw if it cannot.
   }
-  console.log(`Using tray icon path: ${finalIconPath}`);
 
-  tray = new Tray(finalIconPath);
+  tray = new Tray(iconPath);
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Show/Hide App',
